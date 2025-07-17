@@ -19,6 +19,9 @@ REPO = '/repo/main'
 # those have tracts
 #    [10463, 10464, 10704, 10705]
 
+# LSSTCam
+# no cells yet
+# LSSTCam/runs/DRP/20250501_20250604/w_2025_23/DM-51284
 
 def get_args():
     import argparse

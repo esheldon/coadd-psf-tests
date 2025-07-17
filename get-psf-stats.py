@@ -13,6 +13,12 @@ import fitsio
 
 REPO = '/repo/main'
 
+# example collections
+#    A360 (r and i): u/mgorsuch/a360_cell_coadd/20250513T044026Z
+#    A360 (g): u/mgorsuch/a360_cell_coadd_g/20250611T144112Z
+# those have tracts
+#    [10463, 10464, 10704, 10705]
+
 
 def get_args():
     import argparse
@@ -20,6 +26,8 @@ def get_args():
     parser.add_argument('--output', required=True)
     parser.add_argument('--nrand', type=int)
     parser.add_argument('--range', nargs=2, type=int, help='range as a slice')
+    parser.add_argument('--band', default='i')
+    parser.add_argument('--tract', default=None)
     return parser.parse_args()
 
 
@@ -30,20 +38,24 @@ def make_field_info(tract, patch):
     return st
 
 
-def get_field_info(butler, collection, data_kwargs):
+def get_field_info(butler, collections, data_kwargs, band, tract=None):
     """
-    Retrieves the unique tract/patch combiations within a specified collection.
+    Retrieves the unique tract/patch combinations within a specified collection.
 
-    -- Inputs --
 
+    Parameters
+    ----------
     butler: Butler object
+        The butler for queries
     collection:
         the relevant collection containing cell-based coadds of interest
     data_kwargs: dict
         dictionary of specific instrument and skymap used for butler query
+    band: str
+        Band string
 
-    -- Returns --
-
+    Returns
+    --------
     field_data: array
         with columns for available tract and patch IDs within collection
     """
@@ -52,8 +64,8 @@ def get_field_info(butler, collection, data_kwargs):
     dlist = []
     for ref in butler.registry.queryDatasets(
         'deepCoaddCell',
-        band='i',
-        collections=collection,
+        band=band,
+        collections=collections,
         instrument=data_kwargs['instrument'],
         skymap=data_kwargs['skymap'],
     ):
@@ -62,12 +74,15 @@ def get_field_info(butler, collection, data_kwargs):
             ref.dataId.get('tract'),
             ref.dataId.get('patch'),
         )
+        if tract is not None and st['tract'][0] != tract:
+            continue
+
         dlist.append(st)
 
     return eu.numpy_util.combine_arrlist(dlist)
 
 
-def get_cell_count(field_data, butler, collection, data_kwargs):
+def get_cell_count(field_data, butler, collections, data_kwargs, band):
     """
     Retrieve the total number of cells from your input collection
 
@@ -95,12 +110,12 @@ def get_cell_count(field_data, butler, collection, data_kwargs):
 
         coadd = butler.get(
             'deepCoaddCell',
-            collections=collection,
+            collections=collections,
             instrument=data_kwargs['instrument'],
             skymap=data_kwargs['skymap'],
             tract=field['tract'],
             patch=field['patch'],
-            band='i',
+            band=band,
         )
 
         cells = len(list(coadd.cells.keys()))  # get number of non-empty cells
@@ -160,7 +175,7 @@ def get_rand_bbox_xy(rng, bbox):
 
 
 def get_cell_data(
-    field_data, butler, collection, data_kwargs, nrand=None, rng=None,
+    field_data, butler, collections, data_kwargs, band, nrand=None, rng=None,
 ):
     """
     Iterates through cells in each patch to collect cell PSF infromation
@@ -183,7 +198,9 @@ def get_cell_data(
     from esutil.pbar import pbar
 
     print('getting cell count')
-    cell_count = get_cell_count(field_data, butler, collection, data_kwargs)
+    cell_count = get_cell_count(
+        field_data, butler, collections, data_kwargs, band=band,
+    )
 
     print('cell num: ', cell_count)
 
@@ -195,30 +212,32 @@ def get_cell_data(
     for i, field in enumerate(pbar(field_data)):
         coadd_cell_patch = butler.get(
             'deepCoaddCell',
-            collections=collection,
+            collections=collections,
             instrument=data_kwargs['instrument'],
             skymap=data_kwargs['skymap'],
             tract=field['tract'],
             patch=field['patch'],
-            band='i',
+            band=band,
         )
         coadd_psf = butler.get(
-            'deepCoadd.psf',
-            collections=collection,
+            # 'deepCoadd.psf',
+            'deep_coadd.psf',
+            collections=collections,
             instrument=data_kwargs['instrument'],
             skymap=data_kwargs['skymap'],
             tract=field['tract'],
             patch=field['patch'],
-            band='i',
+            band=band,
         )
         coadd = butler.get(
-            'deepCoadd',
-            collections=collection,
+            # 'deepCoadd',
+            'deep_coadd',
+            collections=collections,
             instrument=data_kwargs['instrument'],
             skymap=data_kwargs['skymap'],
             tract=field['tract'],
             patch=field['patch'],
-            band='i',
+            band=band,
         )
         visits = coadd.getInfo().getCoaddInputs().visits
 
@@ -318,18 +337,24 @@ def main():
         'skymap': 'lsst_cells_v1',
     }
 
-    cell_collection = 'u/mgorsuch/ComCam_Cells/Rubin_SV_38_7/20250214T210230Z'
-    cell_butler = Butler(REPO, collections=[cell_collection])
+    # cell_collection = 'u/mgorsuch/ComCam_Cells/Rubin_SV_38_7/20250214T210230Z'
+    # cell_collection = 'u/mgorsuch/a360_cell_coadd/20250513T044026Z'
+    cell_collections = [
+        'u/mgorsuch/a360_cell_coadd/20250513T044026Z',
+        'u/mgorsuch/a360_cell_coadd',
+    ]
+    cell_butler = Butler(REPO, collections=cell_collections)
 
     field_info = get_field_info(
-        cell_butler, cell_collection, comcam_data_id,
+        cell_butler, cell_collections, comcam_data_id, band=args.band,
     )
 
     if args.range is not None:
         field_info = field_info[args.range[0]:args.range[1]]
 
     data = get_cell_data(
-        field_info, cell_butler, cell_collection, comcam_data_id,
+        field_info, cell_butler, cell_collections, comcam_data_id,
+        band=args.band,
         rng=rng,
         nrand=args.nrand,
     )

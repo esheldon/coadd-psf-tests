@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as mplt
 import esutil as eu
-from glob import glob
 
 
 def get_args():
@@ -10,6 +9,8 @@ def get_args():
     parser.add_argument('--diff', action='store_true')
     parser.add_argument('--flist', nargs='+', required=True)
     parser.add_argument('--frac', type=float)
+    parser.add_argument('--output', required=True)
+    parser.add_argument('--show', action='store_true')
     return parser.parse_args()
 
 
@@ -23,9 +24,6 @@ def main():
     #     flist = 'psf-data-coadd-psf.fits.gz'
 
     data = eu.io.read(args.flist)
-
-    fig, ax = mplt.subplots()
-    ax.set(xlabel='RA', ylabel='DEC')
 
     if args.frac is not None:
         rng = np.random.RandomState()
@@ -44,11 +42,6 @@ def main():
         e2=e2,
     )
 
-    print('ra stats')
-    eu.stat.print_stats(data['ra'])
-    print('dec stats')
-    eu.stat.print_stats(data['dec'])
-
     print('e1 stats')
     e1stats = eu.stat.print_stats(e1)
     print('e2 stats')
@@ -58,7 +51,18 @@ def main():
     print('v stats')
     eu.stat.print_stats(v)
 
-    # return
+    radiff = data['ra'].max() - data['ra'].min()
+    decdiff = data['dec'].max() - data['dec'].min()
+
+    if radiff > decdiff:
+        width = 10
+        height = width * decdiff / radiff
+    else:
+        height = 10
+        width = height * radiff / decdiff
+
+    fig, ax = mplt.subplots(figsize=(width, height))
+    ax.set(xlabel='RA', ylabel='DEC')
 
     scale = 0.2
     eu.plotting.mwhiskers(
@@ -114,7 +118,11 @@ def main():
     # )
 
     # fig.savefig('radec.png')
-    mplt.show()
+    if args.show:
+        mplt.show()
+
+    print('writing:', args.output)
+    fig.savefig(args.output, dpi=150)
 
 
 main()

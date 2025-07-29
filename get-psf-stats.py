@@ -11,7 +11,8 @@ from lsst import geom
 import lsst.pex.exceptions
 import fitsio
 
-REPO = '/repo/main'
+# REPO = '/repo/main'
+REPO = '/repo/embargo'
 
 # example collections
 #    A360 (r and i): u/mgorsuch/a360_cell_coadd/20250513T044026Z
@@ -22,6 +23,9 @@ REPO = '/repo/main'
 # LSSTCam
 # no cells yet
 # LSSTCam/runs/DRP/20250501_20250604/w_2025_23/DM-51284
+# has cells
+# LSSTCam/runs/DRP/20250501_20250609/w_2025_26/DM-51580
+
 
 def get_args():
     import argparse
@@ -30,7 +34,7 @@ def get_args():
     parser.add_argument('--nrand', type=int)
     parser.add_argument('--range', nargs=2, type=int, help='range as a slice')
     parser.add_argument('--band', default='i')
-    parser.add_argument('--tract', default=None)
+    parser.add_argument('--tracts', type=int, nargs='+')
     return parser.parse_args()
 
 
@@ -41,7 +45,7 @@ def make_field_info(tract, patch):
     return st
 
 
-def get_field_info(butler, collections, data_kwargs, band, tract=None):
+def get_field_info(butler, collections, data_kwargs, band, tracts=None):
     """
     Retrieves the unique tract/patch combinations within a specified collection.
 
@@ -63,10 +67,13 @@ def get_field_info(butler, collections, data_kwargs, band, tract=None):
         with columns for available tract and patch IDs within collection
     """
     import esutil as eu
+    if tracts is not None:
+        print('will limit to tracts:', tracts)
 
     dlist = []
     for ref in butler.registry.queryDatasets(
-        'deepCoaddCell',
+        # 'deepCoaddCell',
+        'deep_coadd_cell_predetection',
         band=band,
         collections=collections,
         instrument=data_kwargs['instrument'],
@@ -77,7 +84,7 @@ def get_field_info(butler, collections, data_kwargs, band, tract=None):
             ref.dataId.get('tract'),
             ref.dataId.get('patch'),
         )
-        if tract is not None and st['tract'][0] != tract:
+        if tracts is not None and st['tract'][0] not in tracts:
             continue
 
         dlist.append(st)
@@ -112,7 +119,8 @@ def get_cell_count(field_data, butler, collections, data_kwargs, band):
     for field in pbar(field_data):
 
         coadd = butler.get(
-            'deepCoaddCell',
+            # 'deepCoaddCell',
+            'deep_coadd_cell_predetection',
             collections=collections,
             instrument=data_kwargs['instrument'],
             skymap=data_kwargs['skymap'],
@@ -214,7 +222,8 @@ def get_cell_data(
     print('getting psf stats')
     for i, field in enumerate(pbar(field_data)):
         coadd_cell_patch = butler.get(
-            'deepCoaddCell',
+            # 'deepCoaddCell',
+            'deep_coadd_cell_predetection',
             collections=collections,
             instrument=data_kwargs['instrument'],
             skymap=data_kwargs['skymap'],
@@ -336,20 +345,25 @@ def main():
     rng = np.random.RandomState()
 
     comcam_data_id = {
-        'instrument': 'LSSTComCam',
+        # 'instrument': 'LSSTComCam',
+        'instrument': 'LSSTCam',
         'skymap': 'lsst_cells_v1',
     }
 
     # cell_collection = 'u/mgorsuch/ComCam_Cells/Rubin_SV_38_7/20250214T210230Z'
     # cell_collection = 'u/mgorsuch/a360_cell_coadd/20250513T044026Z'
     cell_collections = [
-        'u/mgorsuch/a360_cell_coadd/20250513T044026Z',
-        'u/mgorsuch/a360_cell_coadd',
+        # not sure if this is needed
+        'LSSTCam/runs/DRP/20250501_20250609/w_2025_26/DM-51580/20250703T162051Z',
+        'LSSTCam/runs/DRP/20250501_20250609/w_2025_26/DM-51580',
+        # 'u/mgorsuch/a360_cell_coadd/20250513T044026Z',
+        # 'u/mgorsuch/a360_cell_coadd',
     ]
     cell_butler = Butler(REPO, collections=cell_collections)
 
     field_info = get_field_info(
         cell_butler, cell_collections, comcam_data_id, band=args.band,
+        tracts=args.tracts,
     )
 
     if args.range is not None:

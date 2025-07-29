@@ -8,19 +8,20 @@ def get_args():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--diff', action='store_true')
+    parser.add_argument('--flist', nargs='+', required=True)
     return parser.parse_args()
 
 
 def main():
     args = get_args()
 
-    if args.diff:
-        flist = glob('psf-data-coadd-psf-nrand10-*.fits.gz')
+    # if args.diff:
+    #     flist = glob('psf-data-coadd-psf-nrand10-*.fits.gz')
+    #
+    # else:
+    #     flist = 'psf-data-coadd-psf.fits.gz'
 
-    else:
-        flist = 'psf-data-coadd-psf.fits.gz'
-
-    data = eu.io.read(flist)
+    data = eu.io.read(args.flist)
 
     fig, ax = mplt.subplots()
     ax.set(xlabel='RA', ylabel='DEC')
@@ -73,13 +74,13 @@ def main():
     )
 
     ax.text(
-        0.1, 0.9,
+        0.1, 0.95,
         e1text,
         color='blue',
         transform=ax.transAxes
     )
     ax.text(
-        0.65, 0.9,
+        0.65, 0.95,
         e2text,
         color='blue',
         transform=ax.transAxes

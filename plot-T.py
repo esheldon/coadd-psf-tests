@@ -11,6 +11,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--flist', nargs='+', required=True)
     parser.add_argument('--diff', action='store_true')
+    parser.add_argument('--bins', type=int, default=100)
     return parser.parse_args()
 
 
@@ -38,12 +39,11 @@ def main():
         + r' $\sigma$ = ' + fs
     )
 
-    bins = 100
-    counts, xedges, yedges = np.histogram2d(data['ra'], data['dec'], bins=bins)
+    counts, xedges, yedges = np.histogram2d(data['ra'], data['dec'], bins=args.bins)
 
     # Compute 2D histogram for sum of z-values
     fwhm_sum, _, _ = np.histogram2d(
-        data['ra'], data['dec'], bins=bins, weights=fwhm,
+        data['ra'], data['dec'], bins=args.bins, weights=fwhm,
     )
 
     # Compute mean: z_sum / counts (avoid division by zero)
@@ -54,8 +54,8 @@ def main():
         # where=counts != 0
     )
 
-    if args.diff:
-        mean_fwhm = mean_fwhm.clip(min=-0.03, max=0.03)
+    # if args.diff:
+    #     mean_fwhm = mean_fwhm.clip(min=-0.03, max=0.03)
 
     # Plot the result
     cim = ax.imshow(

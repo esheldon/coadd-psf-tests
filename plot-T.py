@@ -9,6 +9,7 @@ from glob import glob
 def get_args():
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('--flist', nargs='+', required=True)
     parser.add_argument('--diff', action='store_true')
     return parser.parse_args()
 
@@ -16,13 +17,7 @@ def get_args():
 def main():
     args = get_args()
 
-    if args.diff:
-        flist = glob('psf-data-coadd-psf-nrand10-*.fits.gz')
-
-    else:
-        flist = 'psf-data-coadd-psf.fits.gz'
-
-    data = eu.io.read(flist)
+    data = eu.io.read(args.flist)
 
     fig, ax = mplt.subplots()
     ax.set(xlabel='RA', ylabel='DEC')
@@ -31,8 +26,19 @@ def main():
     if args.diff:
         fwhm_cen = ngmix.moments.T_to_fwhm(data['Tcen']) * 0.2
         fwhm = fwhm - fwhm_cen
+        fname = r'$\Delta$ FWHM'
+    else:
+        fname = 'FWHM'
 
-    bins = 1000
+    fwhm_stats = eu.stat.print_stats(fwhm)
+    fm = f'{fwhm_stats["mean"]:.2g}'
+    fs = f'{fwhm_stats["std"]:.2g}'
+    ftext = (
+        r'$\langle$ ' + fname + r' $\rangle$ = ' + fm
+        + r' $\sigma$ = ' + fs
+    )
+
+    bins = 100
     counts, xedges, yedges = np.histogram2d(data['ra'], data['dec'], bins=bins)
 
     # Compute 2D histogram for sum of z-values
@@ -45,10 +51,11 @@ def main():
         fwhm_sum,
         counts,
         out=np.zeros_like(fwhm_sum),
-        where=counts != 0
+        # where=counts != 0
     )
 
-    mean_fwhm = mean_fwhm.clip(min=-0.03, max=0.03)
+    if args.diff:
+        mean_fwhm = mean_fwhm.clip(min=-0.03, max=0.03)
 
     # Plot the result
     cim = ax.imshow(
@@ -59,6 +66,19 @@ def main():
         cmap='inferno',
         # cmap='gray',
         interpolation='nearest',
+    )
+
+    ax.text(
+        0.1, 0.95,
+        ftext,
+        color='blue',
+        transform=ax.transAxes
+    )
+    ax.text(
+        0.1-0.001, 0.95-0.001,
+        ftext,
+        color='white',
+        transform=ax.transAxes
     )
 
     divider = make_axes_locatable(ax)

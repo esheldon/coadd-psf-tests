@@ -9,6 +9,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--diff', action='store_true')
     parser.add_argument('--flist', nargs='+', required=True)
+    parser.add_argument('--frac', type=float)
     return parser.parse_args()
 
 
@@ -26,10 +27,12 @@ def main():
     fig, ax = mplt.subplots()
     ax.set(xlabel='RA', ylabel='DEC')
 
-    if args.diff:
+    if args.frac is not None:
         rng = np.random.RandomState()
-        rind = rng.choice(data.size, size=int(0.1 * data.size))
+        rind = rng.choice(data.size, size=int(args.frac * data.size))
         data = data[rind]
+
+    if args.diff:
         e1 = data['e1'] - data['e1cen']
         e2 = data['e2'] - data['e2cen']
     else:
@@ -40,6 +43,12 @@ def main():
         e1=e1,
         e2=e2,
     )
+
+    print('ra stats')
+    eu.stat.print_stats(data['ra'])
+    print('dec stats')
+    eu.stat.print_stats(data['dec'])
+
     print('e1 stats')
     e1stats = eu.stat.print_stats(e1)
     print('e2 stats')
@@ -48,6 +57,8 @@ def main():
     eu.stat.print_stats(u)
     print('v stats')
     eu.stat.print_stats(v)
+
+    # return
 
     scale = 0.2
     eu.plotting.mwhiskers(

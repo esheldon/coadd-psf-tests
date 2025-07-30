@@ -24,6 +24,10 @@ REPO = '/repo/embargo'
 # no cells yet
 # LSSTCam/runs/DRP/20250501_20250604/w_2025_23/DM-51284
 # has cells
+# tracts
+#  10077 10078 10079 10080 10319 10320 10321 10322 10323 10560 10561 10562
+#  10563 10564 10565 10802 10803 10804 10805 10806 11042 11043 11044 11045
+#  11283 11284
 # LSSTCam/runs/DRP/20250501_20250609/w_2025_26/DM-51580
 
 
@@ -88,6 +92,9 @@ def get_field_info(butler, collections, data_kwargs, band, tracts=None):
             continue
 
         dlist.append(st)
+
+    if len(dlist) == 0:
+        return None
 
     return eu.numpy_util.combine_arrlist(dlist)
 
@@ -365,6 +372,9 @@ def main():
         cell_butler, cell_collections, comcam_data_id, band=args.band,
         tracts=args.tracts,
     )
+    if field_info is None:
+        print('no field info found')
+        return
 
     if args.range is not None:
         field_info = field_info[args.range[0]:args.range[1]]

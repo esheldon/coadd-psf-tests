@@ -29,7 +29,7 @@ def calc_rho_stats(
     # tckwargs['var_method'] = 'jackknife'
     tckwargs['num_threads'] = nproc
     # tckwargs['verbose'] = 2  # show some progress
-    tckwargs['var_method'] = 'bootstrap'
+    # tckwargs['var_method'] = 'bootstrap'
 
     if 'sep_units' not in tckwargs:
         tckwargs['sep_units'] = 'arcmin'
@@ -53,7 +53,7 @@ def calc_rho_stats(
         ra_units='deg', dec_units='deg',
         g1=g1, g2=g2,
         w=weights,
-        npatch=npatch,
+        # npatch=npatch,
     )
     print('    cat_dg')
     cat_dg = treecorr.Catalog(
@@ -61,7 +61,7 @@ def calc_rho_stats(
         ra_units='deg', dec_units='deg',
         g1=dg1, g2=dg2,
         w=weights,
-        patch_centers=cat_g.patch_centers,
+        # patch_centers=cat_g.patch_centers,
     )
     print('    cat_gdTT')
     cat_gdTT = treecorr.Catalog(
@@ -69,7 +69,7 @@ def calc_rho_stats(
         ra_units='deg', dec_units='deg',
         g1=g1 * dT / T, g2=g2 * dT / T,
         w=weights,
-        patch_centers=cat_g.patch_centers,
+        # patch_centers=cat_g.patch_centers,
     )
 
     # setup and run the correlations
@@ -103,6 +103,7 @@ def calc_rho_stats(
 
 def read_data(args):
     import esutil as eu
+    import numpy as np
 
     columns = [
         'ra', 'dec',
@@ -112,9 +113,18 @@ def read_data(args):
         'Tcen',
         'e1cen',
         'e2cen',
+        'visit_count',
     ]
 
-    return eu.io.read(args.flist, columns=columns)
+    data = eu.io.read(args.flist, columns=columns)
+
+    if args.min_nepoch is not None:
+        print('trimming to visit_count > ', args.min_nepoch)
+        w, = np.where(data['visit_count'] > args.min_nepoch)
+        print(f'kept {w.size}/{data.size}')
+        data = data[w]
+
+    return data
 
 
 def extract_data(st):
@@ -147,7 +157,7 @@ def main():
         g1cen=g1cen,
         g2cen=g2cen,
         Tcen=Tcen,
-        npatch=args.npatch,
+        # npatch=args.npatch,
         min_sep=args.min_sep,
         max_sep=args.max_sep,
         nproc=args.nproc,
@@ -168,6 +178,7 @@ def get_args():
                         help='front for file names')
 
     parser.add_argument('flist', nargs='+')
+    parser.add_argument('--min-nepoch', type=int)
 
     parser.add_argument(
         '--low-mem', action='store_true',
@@ -183,10 +194,12 @@ def get_args():
         '--nproc', type=int, default=1,
         help='number of processes to use, default 1'
     )
-    parser.add_argument(
-        '--npatch', type=int, default=40,
-        help='number of patches for bootstrap, default 40'
-    )
+    # parser.add_argument(
+    #     '--npatch',
+    #     type=int,
+    #     default=40,
+    #     help='number of patches for bootstrap, default 40'
+    # )
 
     parser.add_argument(
         '--min-sep', type=float, default=0.5,

@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as mplt
 import esutil as eu
-from glob import glob
 
 
 def get_args():
@@ -9,6 +8,9 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--diff', action='store_true')
     parser.add_argument('--flist', nargs='+', required=True)
+    parser.add_argument('--frac', type=float)
+    parser.add_argument('--output', required=True)
+    parser.add_argument('--show', action='store_true')
     return parser.parse_args()
 
 
@@ -23,13 +25,12 @@ def main():
 
     data = eu.io.read(args.flist)
 
-    fig, ax = mplt.subplots()
-    ax.set(xlabel='RA', ylabel='DEC')
+    if args.frac is not None:
+        rng = np.random.RandomState()
+        rind = rng.choice(data.size, size=int(args.frac * data.size))
+        data = data[rind]
 
     if args.diff:
-        rng = np.random.RandomState()
-        rind = rng.choice(data.size, size=int(0.1 * data.size))
-        data = data[rind]
         e1 = data['e1'] - data['e1cen']
         e2 = data['e2'] - data['e2cen']
     else:
@@ -40,6 +41,7 @@ def main():
         e1=e1,
         e2=e2,
     )
+
     print('e1 stats')
     e1stats = eu.stat.print_stats(e1)
     print('e2 stats')
@@ -48,6 +50,19 @@ def main():
     eu.stat.print_stats(u)
     print('v stats')
     eu.stat.print_stats(v)
+
+    radiff = data['ra'].max() - data['ra'].min()
+    decdiff = data['dec'].max() - data['dec'].min()
+
+    if radiff > decdiff:
+        width = 10
+        height = width * decdiff / radiff
+    else:
+        height = 10
+        width = height * radiff / decdiff
+
+    fig, ax = mplt.subplots(figsize=(width, height))
+    ax.set(xlabel='RA', ylabel='DEC')
 
     scale = 0.2
     eu.plotting.mwhiskers(
@@ -103,7 +118,11 @@ def main():
     # )
 
     # fig.savefig('radec.png')
-    mplt.show()
+    if args.show:
+        mplt.show()
+
+    print('writing:', args.output)
+    fig.savefig(args.output, dpi=150)
 
 
 main()
